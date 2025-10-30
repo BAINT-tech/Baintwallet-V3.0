@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaintWallet - Premium Crypto Wallet</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body { 
+            margin: 0; 
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        #root { 
+            min-height: 100vh; 
+        }
+        
+        /* Animated Gradient Background */
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .animated-gradient {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradientFlow 15s ease infinite;
+        }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        
+        /* Dark Mode */
+        .dark .glass-card {
+            background: rgba(30, 30, 46, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .dark {
+            color: #ffffff;
+        }
+        
+        .dark .text-gray-800 {
+            color: #e0e0e0 !important;
+        }
+        
+        .dark .text-gray-700 {
+            color: #c0c0c0 !important;
+        }
+        
+        .dark .text-gray-600 {
+            color: #a0a0a0 !important;
+        }
+        
+        .dark .bg-gray-50 {
+            background: rgba(50, 50, 70, 0.5) !important;
+        }
+        
+        .dark .bg-gray-100 {
+            background: rgba(40, 40, 60, 0.7) !important;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .pulse-slow {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .bounce-slow {
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        /* Hover Effects */
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .hover-glow:hover {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        /* Notification */
+        .notification {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        /* Loading Spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Smooth Transitions */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        function App() {
+          const [wallet, setWallet] = useState(null);
+          const [loading, setLoading] = useState(false);
+          const [message, setMessage] = useState('');
+          const [seedInput, setSeedInput] = useState('');
+          const [view, setView] = useState('create');
+          const [sendTo, setSendTo] = useState('');
+          const [sendAmount, setSendAmount] = useState('');
+          const [isTestnet, setIsTestnet] = useState(true);
+          const [chain, setChain] = useState('ETH');
+          const [txs, setTxs] = useState([]);
+          const [showSeed, setShowSeed] = useState(false);
+          const [tokens, setTokens] = useState([]);
+          const [loadingTokens, setLoadingTokens] = useState(false);
+          const [selectedToken, setSelectedToken] = useState(null);
+          const [sendTokenAmount, setSendTokenAmount] = useState('');
+          const [prices, setPrices] = useState({});
+          const [darkMode, setDarkMode] = useState(false);
+          const [countingBalance, setCountingBalance] = useState(0);
+          const qrRef = useRef(null);
+
+          const chains = {
+            ETH: {
+              name: 'Ethereum',
+              symbol: 'ETH',
+              icon: '⟠',
+              color: 'from-blue-500 to-purple-600',
+              testnet: { 
+                rpc: 'https://ethereum-sepolia-rpc.publicnode.com', 
+                explorer: 'https://sepolia.etherscan.io', 
+                chainId: 11155111 
+              },
+              mainnet: { 
+                rpc: 'https://ethereum-rpc.publicnode.com', 
+                explorer: 'https://etherscan.io', 
+                chainId: 1 
+              }
+            },
+            BNB: {
+              name: 'BNB Chain',
+              symbol: 'BNB',
+              icon: '◆',
+              color: 'from-yellow-400 to-orange-500',
+              testnet: { 
+                rpc: 'https://bsc-testnet-rpc.publicnode.com', 
+                explorer: 'https://testnet.bscscan.com', 
+                chainId: 97 
+              },
+              mainnet: { 
+                rpc: 'https://bsc-rpc.publicnode.com', 
+                explorer: 'https://bscscan.com', 
+                chainId: 56 
+              }
+            },
+            AVAX: {
+              name: 'Avalanche',
+              symbol: 'AVAX',
+              icon: '▲',
+              color: 'from-red-500 to-pink-600',
+              testnet: { 
+                rpc: 'https://api.avax-test.network/ext/bc/C/rpc', 
+                explorer: 'https://testnet.snowtrace.io', 
+                chainId: 43113 
+              },
+              mainnet: { 
+                rpc: 'https://api.avax.network/ext/bc/C/rpc', 
+                explorer: 'https://snowtrace.io', 
+                chainId: 43114 
+              }
+            },
+            BASE: {
+              name: 'Base',
+              symbol: 'ETH',
+              icon: '◉',
+              color: 'from-blue-600 to-indigo-700',
+              testnet: { 
+                rpc: 'https://sepolia.base.org', 
+                explorer: 'https://sepolia.basescan.org', 
+                chainId: 84532 
+              },
+              mainnet: { 
+                rpc: 'https://mainnet.base.org', 
+                explorer: 'https://basescan.org', 
+                chainId: 8453 
+              }
+            },
+            POLYGON: {
+              name: 'Polygon',
+              symbol: 'MATIC',
+              icon: '⬡',
+              color: 'from-purple-500 to-purple-700',
+              testnet: { 
+                rpc: 'https://rpc-amoy.polygon.technology', 
+                explorer: 'https://amoy.polygonscan.com', 
+                chainId: 80002 
+              },
+              mainnet: { 
+                rpc: 'https://polygon-rpc.com', 
+                explorer: 'https://polygonscan.com', 
+                chainId: 137 
+              }
+            }
+          };
+
+          const TOKEN_ADDRESSES = {
+            ETH: {
+              USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              DAI: '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+            },
+            BNB: {
+              USDT: '0x55d398326f99059fF775485246999027B3197955',
+              USDC: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+              BUSD: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56'
+            },
+            POLYGON: {
+              USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+              USDC: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+              DAI: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063'
+            }
+          };
+
+          const ERC20_ABI = [
+            "function balanceOf(address) view returns (uint256)",
+            "function decimals() view returns (uint8)",
+            "function symbol() view returns (string)",
+            "function transfer(address to, uint256 amount) returns (bool)",
+            "function name() view returns (string)"
+          ];
+
+          const celebrate = () => {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          };
+
+          const showMsg = (msg, type = 'info') => {
+            setMessage(msg);
+            if (type === 'success') celebrate();
+            setTimeout(() => setMessage(''), 4000);
+          };
+
+          const getRpc = () => {
+            const c = chains[chain];
+            return isTestnet ? c.testnet.rpc : c.mainnet.rpc;
+          };
+
+          const getProvider = () => {
+            return new ethers.providers.JsonRpcProvider(getRpc());
+          };
+
+          const getExplorer = () => {
+            const c = chains[chain];
+            return isTestnet ? c.testnet.explorer : c.mainnet.explorer;
+          };
+
+          useEffect(() => {
+            if (wallet && wallet.balance) {
+              const target = parseFloat(wallet.balance);
+              const duration = 1000;
+              const steps = 30;
+              const increment = target / steps;
+              let current = 0;
+              
+              const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                  setCountingBalance(target);
+                  clearInterval(timer);
+                } else {
+                  setCountingBalance(current);
+                }
+              }, duration / steps);
+              
+              return () => clearInterval(timer);
+            }
+          }, [wallet?.balance]);
+
+          const fetchPrices = async () => {
+            try {
+              const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,avalanche-2,matic-network&vs_currencies=usd');
+              const data = await response.json();
+              
+              setPrices({
+                ETH: data.ethereum?.usd || 0,
+                BNB: data.binancecoin?.usd || 0,
+                AVAX: data['avalanche-2']?.usd || 0,
+                MATIC: data['matic-network']?.usd || 0
+              });
+            } catch (e) {
+              console.error('Price fetch error:', e);
+            }
+          };
+
+          const createWallet = async () => {
+            setLoading(true);
+            try {
+              const w = ethers.Wallet.createRandom();
+              const provider = getProvider();
+              const balance = await provider.getBalance(w.address);
+              
+              setWallet({
+                address: w.address,
+                privateKey: w.privateKey,
+                mnemonic: w.mnemonic.phrase,
+                balance: ethers.utils.formatEther(balance)
+              });
+              
+              showMsg('✅ Wallet created successfully!', 'success');
+              setView('wallet');
+              fetchPrices();
+            } catch (e) {
+              showMsg('❌ Error: ' + e.message, 'error');
+            }
+            setLoading(false);
+          };
+
+          const importWallet = async () => {
+            if (!seedInput.trim()) {
+              showMsg('❌ Enter seed phrase', 'error');
+              return;
+            }
+
+            setLoading(true);
+            try {
+              const w = ethers.Wallet.fromMnemonic(seedInput.trim());
+              const provider = getProvider();
+              const balance = await provider.getBalance(w.address);
+              
+              setWallet({
+                address: w.address,
+                privateKey: w.privateKey,
+                mnemonic: w.mnemonic.phrase,
+                balance: ethers.utils.formatEther(balance)
+              });
+              
+              showMsg('✅ Wallet imported successfully!', 'success');
+              setSeedInput('');
+              setView('wallet');
+              fetchPrices();
+            } catch (e) {
+              showMsg('❌ Invalid seed phrase', 'error');
+            }
+            setLoading(false);
+          };
+
+          const refreshBalance = async () => {
+            if (!wallet) return;
+            setLoading(true);
+            try {
+              const provider = getProvider();
+              const balance = await provider.getBalance(wallet.address);
+              setWallet({...wallet, balance: ethers.utils.formatEther(balance)});
+              fetchPrices();
+              if (!isTestnet) {
+                loadTokenBalances();
+              }
+              showMsg('✅ Balance refreshed!', 'success');
+            } catch (e) {
+              console.error(e);
+            }
+            setLoading(false);
+          };
+
+          const send = async () => {
+            if (!sendTo || !sendAmount) {
+              showMsg('❌ Enter address and amount', 'error');
+              return;
+            }
+
+            if (!ethers.utils.isAddress(sendTo)) {
+              showMsg('❌ Invalid address', 'error');
+              return;
+            }
+
+            setLoading(true);
+            try {
+              const provider = getProvider();
+              const signer = new ethers.Wallet(wallet.privateKey, provider);
+              
+              const tx = await signer.sendTransaction({
+                to: sendTo,
+                value: ethers.utils.parseEther(sendAmount)
+              });
+
+              showMsg('✅ Transaction sent! Hash: ' + tx.hash.substring(0, 10) + '...', 'success');
+              
+              setTxs([{
+                hash: tx.hash,
+                to: sendTo,
+                amount: sendAmount,
+                time: new Date().toLocaleString(),
+                status: 'pending',
+                type: 'send',
+                chain: chain,
+                symbol: chains[chain].symbol
+              }, ...txs]);
+
+              tx.wait().then(() => {
+                setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t));
+                showMsg('✅ Transaction confirmed!', 'success');
+                refreshBalance();
+              });
+
+              setSendTo('');
+              setSendAmount('');
+              setView('wallet');
+            } catch (e) {
+              showMsg('❌ ' + e.message, 'error');
+            }
+            setLoading(false);
+          };
+
+          const loadTokenBalances = async () => {
+            if (!wallet || isTestnet) return;
+            
+            setLoadingTokens(true);
+            const tokenAddresses = TOKEN_ADDRESSES[chain] || {};
+            const tokenList = [];
+
+            try {
+              const provider = getProvider();
+              
+              for (const [symbol, address] of Object.entries(tokenAddresses)) {
+                try {
+                  const contract = new ethers.Contract(address, ERC20_ABI, provider);
+                  const [balance, decimals, name] = await Promise.all([
+                    contract.balanceOf(wallet.address),
+                    contract.decimals(),
+                    contract.name()
+                  ]);
+
+                  const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+                  
+                  if (parseFloat(formattedBalance) > 0) {
+                    tokenList.push({
+                      symbol,
+                      name,
+                      address,
+                      balance: formattedBalance,
+                      decimals
+                    });
+                  }
+                } catch (e) {
+                  console.error(`Error loading ${symbol}:`, e);
+                }
+              }
+
+              setTokens(tokenList);
+            } catch (e) {
+              console.error('Token loading error:', e);
+            }
+            
+            setLoadingTokens(false);
+          };
+
+          const sendToken = async () => {
+            if (!selectedToken || !sendTo || !sendTokenAmount) {
+              showMsg('❌ Fill all fields', 'error');
+              return;
+            }
+
+            if (!ethers.utils.isAddress(sendTo)) {
+              showMsg('❌ Invalid address', 'error');
+              return;
+            }
+
+            setLoading(true);
+            try {
+              const provider = getProvider();
+              const signer = new ethers.Wallet(wallet.privateKey, provider);
+              const contract = new ethers.Contract(selectedToken.address, ERC20_ABI, signer);
+              
+              const amount = ethers.utils.parseUnits(sendTokenAmount, selectedToken.decimals);
+              const tx = await contract.transfer(sendTo, amount);
+
+              showMsg(`✅ ${selectedToken.symbol} sent! Hash: ${tx.hash.substring(0, 10)}...`, 'success');
+              
+              setTxs([{
+                hash: tx.hash,
+                to: sendTo,
+                amount: sendTokenAmount,
+                time: new Date().toLocaleString(),
+                status: 'pending',
+                type: 'token-send',
+                chain: chain,
+                symbol: selectedToken.symbol
+              }, ...txs]);
+
+              tx.wait().then(() => {
+                setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t));
+                showMsg('✅ Token transfer confirmed!', 'success');
+                loadTokenBalances();
+              });
+
+              setSendTo('');
+              setSendTokenAmount('');
+              setSelectedToken(null);
+              setView('wallet');
+            } catch (e) {
+              showMsg('❌ Token send failed: ' + e.message, 'error');
+            }
+            setLoading(false);
+          };
+
+          useEffect(() => {
+            if (view === 'receive' && qrRef.current && wallet) {
+              qrRef.current.innerHTML = '';
+              new QRCode(qrRef.current, {
+                text: wallet.address,
+                width: 200,
+                height: 200
+              });
+            }
+          }, [view, wallet]);
+
+          useEffect(() => {
+            if (wallet && !isTestnet) {
+              loadTokenBalances();
+            }
+          }, [wallet, chain, isTestnet]);
+
+          useEffect(() => {
+            fetchPrices();
+            const interval = setInterval(fetchPrices, 60000);
+            return () => clearInterval(interval);
+          }, []);
+
+          useEffect(() => {
+            const savedTxs = localStorage.getItem('baintwallet_txs');
+            if (savedTxs) {
+              try {
+                setTxs(JSON.parse(savedTxs));
+              } catch (e) {}
+            }
+            
+            const savedDarkMode = localStorage.getItem('darkMode');
+            if (savedDarkMode === 'true') {
+              setDarkMode(true);
+            }
+          }, []);
+
+          useEffect(() => {
+            if (txs.length > 0) {
+              localStorage.setItem('baintwallet_txs', JSON.stringify(txs));
+            }
+          }, [txs]);
+
+          useEffect(() => {
+            localStorage.setItem('darkMode', darkMode);
+          }, [darkMode]);
+
+          if (!wallet) {
+            return (
+              <div className={`min-h-screen animated-gradient flex items-center justify-center p-4 ${darkMode ? 'dark' : ''}`}>
+                <div className="glass-card rounded-3xl shadow-2xl w-full max-w-md p-8 fade-in hover-lift">
+                  <div className="text-center mb-8">
+                    <div className="text-7xl mb-4 bounce-slow">💎</div>
+                    <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                      BaintWallet
+                    </h1>
+                    <p className="text-green-600 font-bold text-lg">Premium Crypto Wallet</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                      Secure • Fast • Professional
+                    </p>
+                  </div>
+
+                  {message && (
+                    <div className="notification mb-4 p-4 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-xl text-center font-bold text-sm shadow-lg">
+                      {message}
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                    <div className="flex justify-center gap-2 mb-4">
+                      <button 
+                        onClick={() => setDarkMode(!darkMode)}
+                        className="px-4 py-2 rounded-xl font-bold bg-gray-200 dark:bg-gray-700 hover-glow transition"
+                      >
+                        {darkMode ? '☀️' : '🌙'}
+                      </button>
+                      <button 
+                        onClick={() => setIsTestnet(!isTestnet)}
+                        className={`px-4 py-2 rounded-xl font-bold transition hover-glow ${isTestnet ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}
+                      >
+                        {isTestnet ? '🧪 Testnet' : '🌐 Mainnet'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      {Object.entries(chains).map(([key, c]) => (
+                        <button
+                          key={key}
+                          onClick={() => setChain(key)}
+                          className={`p-4 rounded-xl border-2 font-bold transition hover-lift ${
+                            chain === key 
+                              ? `border-purple-600 bg-gradient-to-r ${c.color} text-white shadow-lg` 
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-2xl mb-1">{c.icon}</div>
+                          <div className="text-sm">{key}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mb-6">
+                    <button
+                      onClick={() => setView('create')}
+                      className={`flex-1 py-3 rounded-xl font-bold transition hover-lift ${
+                        view === 'create' 
+                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg' 
+                          : 'bg-gray-100 dark:bg-gray-800'
+                      }`}
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => setView('import')}
+                      className={`flex-1 py-3 rounded-xl font-bold transition hover-lift ${
+                        view === 'import' 
+                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg' 
+                          : 'bg-gray-100 dark:bg-gray-800'
+                      }`}
+                    >
+                      Import
+                    </button>
+                  </div>
+
+                  {view === 'create' ? (
+                    <button
+                      onClick={createWallet}
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover-lift hover-glow transition shadow-lg"
+                    >
+                      {loading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
+                          Creating...
+                        </span>
+                      ) : (
+                        '🚀 Create Wallet'
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <textarea
+                        value={seedInput}
+                        onChange={(e) => setSeedInput(e.target.value)}
+                        placeholder="Enter 12-word seed phrase"
+                        className="w-full border-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-4 font-mono text-sm focus:border-purple-500 outline-none transition"
+                        rows="3"
+                      />
+                      <button
+                        onClick={importWallet}
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover-lift hover-glow transition shadow-lg"
+                      >
+                        {loading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
+                            Importing...
+                          </span>
+                        ) : (
+                          '📥 Import Wallet'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      🔒 Your keys never leave your device
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const currentChain = chains[chain];
+          const currentPrice = prices[chain === 'BASE' ? 'ETH' : chain] || 0;
+          const usdValue = (countingBalance * currentPrice).toFixed(2);
+          const totalPortfolioValue = parseFloat(usdValue) + tokens.reduce((sum, t) => sum + parseFloat(t.balance || 0), 0);
+
+          return (
+            <div className={`min-h-screen animated-gradient p-4 ${darkMode ? 'dark' : ''}`}>
+              {message && (
+                <div className="notification fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-gradient-to-r from-green-400 to-blue-500 text-white px-6 py-4 rounded-xl font-bold shadow-2xl max-w-md text-center">
+                  {message}
+                </div>
+              )}
+
+              <div className="max-w-2xl mx-auto">
+                <div className="glass-card rounded-3xl shadow-2xl overflow-hidden fade-in">
+                  <div className={`bg-gradient-to-r ${currentChain.color} p-6 text-white`}>
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h1 className="text-3xl font-black">💎 BaintWallet</h1>
+                        <p className="text-xs opacity-90">Premium Edition</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setDarkMode(!darkMode)}
+                          className="bg-white/20 px-3 py-2 rounded-lg text-sm font-bold hover:bg-white/30 transition backdrop-blur"
+                        >
+                          {darkMode ? '☀️' : '🌙'}
+                        </button>
+                        <button 
+                          onClick={() => setIsTestnet(!isTestnet)}
+                          className="bg-white/20 px-3 py-2 rounded-lg text-sm font-bold hover:bg-white/30 transition backdrop-blur"
+                        >
+                          {isTestnet ? '🧪' : '🌐'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <select
+                        value={chain}
+                        onChange={(e) => {
+                          setChain(e.target.value);
+                          setTokens([]);
+                        }}
+                        className="w-full bg-white/20 backdrop-blur rounded-xl p-3 font-bold text-white"
+                      >
+                        {Object.entries(chains).map(([key, c]) => (
+                          <option key={key} value={key} className="text-gray-800">{c.icon} {c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="glass rounded-2xl p-6 mb-4">
+                      <div className="text-sm opacity-80 mb-2">Total Balance</div>
+                      <div className="flex items-baseline gap-3">
+                        <div className="text-5xl font-black">{countingBalance.toFixed(4)}</div>
+                        <div className="text-xl font-bold">{currentChain.symbol}</div>
+                      </div>
+                      {currentPrice > 0 && (
+                        <div className="text-lg mt-2 opacity-90">
+                          ≈ ${usdValue} USD
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      <button 
+                        onClick={() => setView('send')} 
+                        className="glass rounded-xl p-3 text-center hover:bg-white/30 transition"
+                      >
+                        <div className="text-2xl mb-1">📤</div>
+                        <div className="text-xs font-semibold">Send</div>
+                      </button>
+                      <button 
+                        onClick={() => setView('receive')} 
+                        className="glass rounded-xl p-3 text-center hover:bg-white/30 transition"
+                      >
+                        <div className="text-2xl mb-1">📥</div>
+                        <div className="text-xs font-semibold">Receive</div>
+                      </button>
+                      <button 
+                        onClick={() => setView('history')} 
+                        className="glass rounded-xl p-3 text-center hover:bg-white/30 transition"
+                      >
+                        <div className="text-2xl mb-1">📜</div>
+                        <div className="text-xs font-semibold">History</div>
+                      </button>
+                      <button 
+                        onClick={refreshBalance} 
+                        disabled={loading}
+                        className="glass rounded-xl p-3 text-center hover:bg-white/30 transition disabled:opacity-50"
+                      >
+                        <div className="text-2xl mb-1">{loading ? '⏳' : '🔄'}</div>
+                        <div className="text-xs font-semibold">Refresh</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    {view === 'wallet' && (
+                      <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl p-4 slide-in">
+                          <p className="font-bold text-green-800 dark:text-green-300">✅ Connected to {currentChain.name}</p>
+                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">Real blockchain • Secure • Professional</p>
+                        </div>
+
+                        <div className="hover-lift">
+                          <div className="flex justify-between mb-2">
+                            <span className="font-bold text-gray-700 dark:text-gray-300">Your Address</span>
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(wallet.address); 
+                                showMsg('✅ Address copied!', 'success');
+                              }} 
+                              className="text-purple-600 dark:text-purple-400 font-bold text-sm hover:text-purple-700 transition"
+                            >
+                              📋 Copy
+                            </button>
+                          </div>
+                          <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 font-mono text-xs break-all border-2 border-gray-200 dark:border-gray-700">
+                            {wallet.address}
+                          </div>
+                        </div>
+
+                        {!isTestnet && (
+                          <div className="slide-in">
+                            <div className="flex justify-between items-center mb-3">
+                              <h3 className="font-bold text-gray-700 dark:text-gray-300 text-lg">Tokens</h3>
+                              <button 
+                                onClick={loadTokenBalances}
+                                disabled={loadingTokens}
+                                className="text-purple-600 dark:text-purple-400 font-bold text-sm hover:text-purple-700 transition disabled:opacity-50"
+                              >
+                                {loadingTokens ? '⏳ Loading...' : '🔄 Refresh'}
+                              </button>
+                            </div>
+
+                            {tokens.length === 0 && !loadingTokens ? (
+                              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 text-center border-2 border-gray-200 dark:border-gray-700 hover-lift">
+                                <div className="text-4xl mb-2">🪙</div>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">No tokens found</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {tokens.map((token, idx) => (
+                                  <div key={idx} className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 flex justify-between items-center border-2 border-blue-200 dark:border-blue-800 hover-lift">
+                                    <div>
+                                      <div className="font-bold text-gray-800 dark:text-gray-200">{token.symbol}</div>
+                                      <div className="text-xs text-gray-600 dark:text-gray-400">{token.name}</div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-bold text-gray-800 dark:text-gray-200">{parseFloat(token.balance).toFixed(4)}</div>
+                                      <button 
+                                        onClick={() => {
+                                          setSelectedToken(token);
+                                          setView('send-token');
+                                        }}
+                                        className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline mt-1"
+                                      >
+                                        Send →
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => setShowSeed(!showSeed)}
+                          className="w-full bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-red-300 dark:border-red-700 p-4 rounded-xl text-left hover:border-red-400 transition hover-lift"
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-red-700 dark:text-red-400">🔐 Recovery Phrase</span>
+                            <span className="text-2xl">{showSeed ? '🙈' : '👁️'}</span>
+                          </div>
+                          {showSeed && (
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 mt-3 border-2 border-red-400 dark:border-red-600 fade-in">
+                              <p className="text-xs text-red-600 dark:text-red-400 font-bold mb-3">⚠️ NEVER share with anyone!</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {wallet.mnemonic.split(' ').map((w, i) => (
+                                  <div key={i} className="bg-gray-50 dark:bg-gray-700 p-2 rounded text-xs font-mono border border-gray-200 dark:border-gray-600">
+                                    <span className="text-gray-400">{i+1}.</span> {w}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation(); 
+                                  navigator.clipboard.writeText(wallet.mnemonic); 
+                                  showMsg('✅ Seed phrase copied!', 'success');
+                                }}
+                                className="w-full mt-3 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 transition"
+                              >
+                                📋 Copy Phrase
+                              </button>
+                            </div>
+                          )}
+                        </button>
+
+                        {isTestnet && (
+                          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4 slide-in">
+                            <p className="font-bold text-blue-800 dark:text-blue-300 mb-2">🚰 Get Testnet Funds:</p>
+                            {chain === 'ETH' && <a href="https://sepoliafaucet.com/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 underline text-sm block hover:text-blue-700">Sepolia Faucet →</a>}
+                            {chain === 'BNB' && <a href="https://testnet.bnbchain.org/faucet-smart" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 underline text-sm block hover:text-blue-700">BSC Faucet →</a>}
+                            {chain === 'AVAX' && <a href="https://faucet.avax.network/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 underline text-sm block hover:text-blue-700">Fuji Faucet →</a>}
+                            {chain === 'BASE' && <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 underline text-sm block hover:text-blue-700">Base Faucet →</a>}
+                            {chain === 'POLYGON' && <a href="https://faucet.polygon.technology/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 underline text-sm block hover:text-blue-700">Polygon Faucet →</a>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {view === 'send' && (
+                      <div className="space-y-4 fade-in">
+                        <div className="flex justify-between mb-4">
+                          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📤 Send {currentChain.symbol}</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
+                        </div>
+
+                        <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 p-3 rounded-xl">
+                          <p className="font-bold text-green-800 dark:text-green-300">✅ Real Blockchain Transaction</p>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={sendTo}
+                          onChange={(e) => setSendTo(e.target.value)}
+                          placeholder="Recipient address (0x...)"
+                          className="w-full border-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-4 font-mono text-sm focus:border-purple-500 outline-none transition"
+                        />
+
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={sendAmount}
+                          onChange={(e) => setSendAmount(e.target.value)}
+                          placeholder="Amount"
+                          className="w-full border-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-4 text-lg focus:border-purple-500 outline-none transition"
+                        />
+
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                          <span>Balance: {parseFloat(wallet.balance).toFixed(4)} {currentChain.symbol}</span>
+                          <button 
+                            onClick={() => setSendAmount((parseFloat(wallet.balance) - 0.001).toFixed(4))} 
+                            className="text-purple-600 dark:text-purple-400 font-bold hover:text-purple-700"
+                          >
+                            Max
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={send}
+                          disabled={loading || !sendTo || !sendAmount}
+                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover-lift hover-glow transition shadow-lg"
+                        >
+                          {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
+                              Sending...
+                            </span>
+                          ) : (
+                            '📤 Send Transaction'
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {view === 'send-token' && selectedToken && (
+                      <div className="space-y-4 fade-in">
+                        <div className="flex justify-between mb-4">
+                          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📤 Send {selectedToken.symbol}</h2>
+                          <button onClick={() => {setView('wallet'); setSelectedToken(null);}} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
+                        </div>
+
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 p-3 rounded-xl">
+                          <p className="font-bold text-blue-800 dark:text-blue-300">✅ Real Token Transfer</p>
+                          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Sending {selectedToken.name}</p>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={sendTo}
+                          onChange={(e) => setSendTo(e.target.value)}
+                          placeholder="Recipient address (0x...)"
+                          className="w-full border-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-4 font-mono text-sm focus:border-purple-500 outline-none transition"
+                        />
+
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={sendTokenAmount}
+                          onChange={(e) => setSendTokenAmount(e.target.value)}
+                          placeholder="Amount"
+                          className="w-full border-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-4 text-lg focus:border-purple-500 outline-none transition"
+                        />
+
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                          <span>Balance: {parseFloat(selectedToken.balance).toFixed(4)} {selectedToken.symbol}</span>
+                          <button 
+                            onClick={() => setSendTokenAmount(selectedToken.balance)} 
+                            className="text-purple-600 dark:text-purple-400 font-bold hover:text-purple-700"
+                          >
+                            Max
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={sendToken}
+                          disabled={loading || !sendTo || !sendTokenAmount}
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 hover-lift hover-glow transition shadow-lg"
+                        >
+                          {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
+                              Sending Token...
+                            </span>
+                          ) : (
+                            `📤 Send ${selectedToken.symbol}`
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {view === 'receive' && (
+                      <div className="space-y-4 fade-in">
+                        <div className="flex justify-between mb-4">
+                          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📥 Receive {currentChain.symbol}</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
+                        </div>
+
+                        <div className="text-center">
+                          <div ref={qrRef} className="inline-block mb-4 p-4 bg-white rounded-xl border-2 shadow-lg"></div>
+                          <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 font-mono text-xs break-all mb-4 border-2 border-gray-200 dark:border-gray-700">
+                            {wallet.address}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(wallet.address); 
+                              showMsg('✅ Address copied!', 'success');
+                            }}
+                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-xl font-bold hover-lift hover-glow transition shadow-lg"
+                          >
+                            📋 Copy Address
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {view === 'history' && (
+                      <div className="space-y-4 fade-in">
+                        <div className="flex justify-between mb-4">
+                          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">📜 Transaction History</h2>
+                          <button onClick={() => setView('wallet')} className="text-3xl text-gray-400 hover:text-red-500 transition">✕</button>
+                        </div>
+
+                        {txs.filter(tx => tx.chain === chain).length === 0 ? (
+                          <div className="text-center py-16">
+                            <div className="text-6xl mb-4">📜</div>
+                            <p className="text-gray-600 dark:text-gray-400 font-bold">No transactions yet</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Your history will appear here</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {txs.filter(tx => tx.chain === chain).map((tx, i) => (
+                              <div key={i} className="bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-xl p-4 border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 transition hover-lift">
+                                <div className="flex justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-2xl">
+                                      {tx.type === 'send' ? '📤' : tx.type === 'token-send' ? '🪙' : '📥'}
+                                    </span>
+                                    <div>
+                                      <div className="font-bold text-gray-800 dark:text-gray-200 capitalize">
+                                        {tx.type === 'token-send' ? 'Token Send' : tx.type}
+                                      </div>
+                                      <div className="text-xs text-gray-600 dark:text-gray-400">{tx.time}</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-bold text-gray-800 dark:text-gray-200">-{tx.amount} {tx.symbol}</div>
+                                    <span className={`text-xs px-2 py-1 rounded ${tx.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300'}`}>
+                                      {tx.status}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 bg-gray-100 dark:bg-gray-800 p-2 rounded font-mono">
+                                  To: {tx.to.substring(0, 10)}...{tx.to.substring(32)}
+                                </div>
+                                <button
+                                  onClick={() => window.open(`${getExplorer()}/tx/${tx.hash}`, '_blank')}
+                                  className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline"
+                                >
+                                  View on Explorer →
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 text-center text-white">
+                  <p className="font-bold text-lg">BaintWallet Premium</p>
+                  <p className="text-sm opacity-90 mt-1">
+                    ✅ Real • ✅ Secure • ✅ Professional
+                  </p>
+                  <p className="text-xs opacity-75 mt-2">
+                    {isTestnet ? '🧪 Testnet' : '🌐 Mainnet'} • {currentChain.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
